@@ -6,16 +6,75 @@ from multiagent.environment import MultiAgentEnv
 from multiagent.policy import Policy
 import numpy as np
 
-class RandomPolicy(Policy):
-    def __init__(self, env:MultiAgentEnv, agent_index):
-        self.n_action_u = env.action_space[agent_index].n
-        self.n_action_c = env.world.dim_c
+
+class AgentTrainer(object):
+    def __init__(self, agent_name, observation_shape, action_space):
+        raise NotImplemented()
 
     def action(self, obs):
-        u = np.zeros(self.n_action_u)
-        c = np.zeros(self.n_action_c)
-        u[np.random.randint(0, self.n_action_u)] = 1
-        return np.concatenate([u, c])
+        raise NotImplemented()
+
+    def update(self, obs, act, reward, done, terminal):
+        raise NotImplemented()
+
+
+class RandomPolicy(Policy):
+    def __init__(self, action_space):
+        self.action_space = action_space
+
+    def action(self, obs):
+        u = np.zeros(self.action_space.n)
+        u[np.random.randint(0, self.action_space.n)] = 1
+        return u
+
+class TileCoding:
+    def __init__(self,
+                 state_low: np.array,
+                 state_high: np.array,
+                 num_actions: int,
+                 num_tilings: int,
+                 tile_width: np.array):
+        pass
+
+
+class FixedRandomPolicyAgentTrainer(AgentTrainer):
+
+    def __init__(self, agent_name, observation_shape, action_space):
+        self.agent_name = agent_name
+        self.action_space = action_space
+        self.policy = RandomPolicy(action_space)
+
+    def action(self, obs):
+        return self.policy.action(obs)
+
+    def update(self, obs, act, reward, done, terminal):
+        pass
+
+
+class SarsaLambdaAgentTrainer(AgentTrainer):
+    class EpsilonGreedy:
+        def __init__(self, epsilon):
+            self.epsilon = epsilon
+
+        def _call_(self, obs, done, w):
+            pass
+
+    def __init__(self, agent_name, observation_shape, action_space, gamma, lam, alpha):
+        self.agent_name = agent_name
+        self.observation_shape = observation_shape
+        self.action_space = action_space
+        self.gamma = gamma
+        self.lam = lam
+        self.alpha = alpha
+
+        self.policy = RandomPolicy(action_space)
+
+
+    def action(self, obs):
+        return self.policy.action(obs)
+
+    def update(self, obs, act, reward, done, terminal):
+        pass
 
 def SarsaLambda(
         env: MultiAgentEnv,
@@ -28,19 +87,30 @@ def SarsaLambda(
     episode_rewards = [0.0]  # sum of rewards for all agents
     agent_rewards = [[0.0] for _ in range(env.n)]  # individual agent reward
 
-    policies = [RandomPolicy(env, agent_index) for agent_index in range(env.n)]
-    obs_n = env.reset()
+    trainers = []
+    for i, agent in enumerate(env.agents):
+        if agent.adversary:
+            trainers.append(SarsaLambdaAgentTrainer("agent_%d" % i, env.observation_space[i], env.action_space[i],
+                                                    gamma, lam, alpha))
+        else:
+            trainers.append(FixedRandomPolicyAgentTrainer("agent_%d" % i, env.observation_space[i], env.action_space[i]))
 
+    obs_n = env.reset()
     episode_step = 0
     while True:
         # get action from each agent's policy
         act_n = []
-        for i, policy in enumerate(policies):
-            act_n.append(policy.action(obs_n[i]))
+        for i, trainer in enumerate(trainers):
+            act_n.append(trainer.action(obs_n[i]))
 
         # step
         obs_n, reward_n, done_n, info_n = env.step(act_n)
         episode_step += 1
+        terminal = episode_step >= max_episode_len
+
+        for i, trainer in enumerate(trainers):
+            trainer.update(obs_n[i], act_n[i], reward_n[i], done_n[i], terminal)
+
         # render
         env.render()
         # if len(episode_rewards) %100 == 0:
@@ -54,7 +124,7 @@ def SarsaLambda(
         for agent in env.world.agents:
             print(agent.name + " reward: %0.3f" % env._get_reward(agent))
 
-        if all(done_n) or episode_step >= max_episode_len:
+        if all(done_n) or terminal:
             obs_n = env.reset()
             episode_step = 0
             episode_rewards.append(0)
