@@ -49,6 +49,9 @@ class FixedRandomPolicyAgentTrainer(AgentTrainer):
 
     def update(self, obs, act, reward, done, terminal):
         pass
+    
+    def reset(self):
+        pass
 
 
 class SarsaLambdaAgentTrainer(AgentTrainer):
