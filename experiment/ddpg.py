@@ -207,16 +207,17 @@ def DDPG(
     trainers = []
 
     for i, agent in enumerate(env.agents):
+        print(i)
         if agent.adversary:
-            print(env.observation_space[i])
-            trainers.append(DdpgAgent("agent_%d" % i, env.observation_space[i].shape, env.action_space[i].shape))
+            trainers.append(DdpgAgent("agent_%d" % i, env.observation_space[i].shape[0], env.action_space[i].n))
         else:
             trainers.append(FixedRandomPolicyAgentTrainer("agent_%d" % i, env.observation_space[i], env.action_space[i]))
 
 
     for i_episode in range(1, num_episode+1):
         state = env.reset()
-        agent.reset()
+        for trainer in trainers:
+            trainer.reset()
         score = np.zeros(len(trainers))
         for t in range(max_episode_len):
             actions = []
@@ -224,9 +225,13 @@ def DDPG(
                 actions.append(trainer.action(state[idx]))
 
             next_state, reward, done, _ = env.step(actions)
+
+            #print(reward)
+            if i_episode % 5 == 0:
+                env.render()
             
             for idx, trainer in enumerate(trainers):
-                agent.update(state[idx], actions[idx], reward[idx], next_state[idx], done[idx])
+                trainer.update(state[idx], actions[idx], reward[idx], next_state[idx], done[idx])
             state = next_state
             score += reward
             if all(done):
@@ -234,9 +239,10 @@ def DDPG(
                 break 
         scores_deque.append(score)
         scores.append(score)
-        print('\rEpisode {}\tAverage Score: {:.2f}\tScore: {:.2f}'.format(i_episode, np.mean(scores_deque), score), end="")
-        if i_episode % 100 == 0:
-            torch.save(agent.actor_local.state_dict(), 'checkpoint_actor.pth')
-            torch.save(agent.critic_local.state_dict(), 'checkpoint_critic.pth')
+        print('\rEpisode {}\tAverage Score: {:.2f}\tScore: {}'.format(i_episode, np.mean(scores_deque), score), end="")
+        if i_episode % 10 == 0:
+            env.render()
+            #torch.save(agent.actor_local.state_dict(), 'checkpoint_actor.pth')
+            #torch.save(agent.critic_local.state_dict(), 'checkpoint_critic.pth')
             print('\rEpisode {}\tAverage Score: {:.2f}'.format(i_episode, np.mean(scores_deque)))   
     return scores
