@@ -7,6 +7,7 @@ from multiagent.policy import Policy
 from multiagent.policy import InteractivePolicy
 import multiagent.scenarios as scenarios
 from sarsa import SarsaLambda
+from ddpg import DDPG
 import numpy as np
 import os,sys
 
@@ -25,4 +26,5 @@ if __name__ == '__main__':
     # env = MultiAgentEnv(world, scenario.reset_world, scenario.reward, scenario.observation, info_callback=None, shared_viewer=False)
     env = MultiAgentEnv(world, scenario.reset_world, scenario.reward, scenario.observation, info_callback=None)
 
-    SarsaLambda(env, gamma, lam, alpha, num_episodes)
+    #SarsaLambda(env, gamma, lam, alpha, num_episodes)
+    DDPG(env, num_episodes)
