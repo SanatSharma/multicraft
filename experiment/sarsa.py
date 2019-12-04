@@ -16,6 +16,9 @@ class AgentTrainer(object):
 
     def update(self, obs, act, reward, done, terminal):
         raise NotImplemented()
+    
+    def reset(self):
+        raise NotImplemented()
 
 
 class RandomPolicy(Policy):
@@ -77,6 +80,9 @@ class SarsaLambdaAgentTrainer(AgentTrainer):
         return self.policy.action(obs)
 
     def update(self, obs, act, reward, done, terminal):
+        pass
+
+    def reset(self):
         pass
 
 def SarsaLambda(
