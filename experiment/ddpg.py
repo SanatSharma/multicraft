@@ -14,7 +14,8 @@ from multiagent.environment import MultiAgentEnv
 from multiagent.policy import Policy
 import numpy as np
 import time
-
+import os
+import csv
 
 BUFFER_SIZE = int(1e6)  # replay buffer size
 BATCH_SIZE = 128        # minibatch size
@@ -202,6 +203,20 @@ def DDPG(
     num_episode: int,
     max_episode_len=100
 ):
+    fieldnames = ['Episode',
+                  'Average Reward',
+                  'Agents Reward',
+                  'Episode Reward',
+                  'Episode Adversary Reward',
+                  'Episode Good Agent Reward']
+
+    rows = [] # for saving to csv file
+    dir_path = os.path.dirname(os.path.realpath(__file__)) + "/ddpg_out"
+    episode_rewards = []  # sum of rewards for all agents
+    adversary_rewards = []  # sum of rewards for adversary agents
+    good_agent_rewards = []  # sum of rewards for good agents
+
+
     scores_deque = deque(maxlen=100)
     scores = []
     max_score = -np.Inf
@@ -221,6 +236,11 @@ def DDPG(
         for trainer in trainers:
             trainer.reset(state)
         score = np.zeros(len(trainers))
+        episode_rewards.append(0.)
+        adversary_rewards.append(0.)
+        good_agent_rewards.append(0.)
+        agent_rewards = np.zeros(len(trainers))
+
         for t in range(max_episode_len):
             actions = []
             for idx, trainer in enumerate(trainers):
@@ -236,6 +256,15 @@ def DDPG(
                 trainer.update(state[idx], actions[idx], reward[idx], next_state[idx], done[idx])
             state = next_state
             score += reward
+
+            for i, agent in enumerate(env.agents):
+                episode_rewards[-1] += reward[i]
+                if agent.adversary:
+                    adversary_rewards[-1] += reward[i]
+                else:
+                    good_agent_rewards[-1] += reward[i]
+            agent_rewards += reward
+
             if all(done):
                 print("Done with episode:", i_episode)
                 break 
@@ -247,5 +276,13 @@ def DDPG(
             env.render()
             #torch.save(agent.actor_local.state_dict(), 'checkpoint_actor.pth')
             #torch.save(agent.critic_local.state_dict(), 'checkpoint_critic.pth')
-            print('\rEpisode {}\tAverage Score: {:.2f}'.format(i_episode, np.mean(scores_deque)))   
-    return scores
+            print('\rEpisode {}\tAverage Score: {:.2f}'.format(i_episode, np.mean(scores_deque)))
+
+        vals = [i_episode, np.mean(episode_rewards), agent_rewards, episode_rewards[-1], adversary_rewards[-1]]
+        rows.append(dict(zip(fieldnames, vals)))
+
+    with open('ddpg_out/benchmark.csv', mode='w') as csv_file:
+        writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
+        writer.writeheader()
+        for row in rows:
+            writer.writerow(row)

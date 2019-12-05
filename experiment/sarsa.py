@@ -233,7 +233,7 @@ def SarsaLambda(
                   'Episode Good Agent Reward']
 
     rows = [] # for saving to csv file
-    dir_path = os.path.dirname(os.path.realpath(__file__)) + "/out"
+    dir_path = os.path.dirname(os.path.realpath(__file__)) + "/sarsa_out"
     episode_rewards = []  # sum of rewards for all agents
     adversary_rewards = []  # sum of rewards for adversary agents
     good_agent_rewards = []  # sum of rewards for good agents
@@ -303,11 +303,10 @@ def SarsaLambda(
                       adversary_rewards[-1],
                       time.time() - ts1), end="")
 
-
-        vals =[i_episode, np.mean(episode_rewards), agent_rewards, episode_rewards[-1], adversary_rewards[-1]]
+        vals = [i_episode, np.mean(episode_rewards), agent_rewards, episode_rewards[-1], adversary_rewards[-1]]
         rows.append(dict(zip(fieldnames, vals)))
 
-    with open('out/benchmark.csv', mode='w') as csv_file:
+    with open('sarsa_out/benchmark.csv', mode='w') as csv_file:
         writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
         writer.writeheader()
         for row in rows:

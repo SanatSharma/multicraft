@@ -25,5 +25,5 @@ if __name__ == '__main__':
     # env = MultiAgentEnv(world, scenario.reset_world, scenario.reward, scenario.observation, info_callback=None, shared_viewer=False)
     env = MultiAgentEnv(world, scenario.reset_world, scenario.reward, scenario.observation, info_callback=None)
 
-    SarsaLambda(env, gamma, lam, alpha, 5, 25, False)
-    # DDPG(env, 2000, 25)
+    SarsaLambda(env, gamma, lam, alpha, 10, 25, False)
+    DDPG(env, 10, 25)
