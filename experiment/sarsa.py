@@ -7,6 +7,7 @@ from multiagent.policy import Policy
 import numpy as np
 import time
 import os
+import csv
 
 class AgentTrainer(object):
     def __init__(self, agent_name, observation_shape, action_space):
@@ -224,7 +225,20 @@ def SarsaLambda(
         max_episode_len=100,
         use_trained_weight=False
 ):
+    fieldnames = ['Episode',
+                  'Average Reward',
+                  'Agents Reward',
+                  'Episode Reward',
+                  'Episode Adversary Reward',
+                  'Episode Good Agent Reward']
+
+    rows = [] # for saving to csv file
     dir_path = os.path.dirname(os.path.realpath(__file__)) + "/out"
+    episode_rewards = []  # sum of rewards for all agents
+    adversary_rewards = []  # sum of rewards for adversary agents
+    good_agent_rewards = []  # sum of rewards for good agents
+
+    # initialize trainers
     trainers = []
     for i, agent in enumerate(env.agents):
         if agent.adversary:
@@ -237,16 +251,14 @@ def SarsaLambda(
             trainer = FixedRandomPolicyAgentTrainer("agent_%d" % i, env.observation_space[i], env.action_space[i])
 
         trainers.append(trainer)
-    episode_rewards = []  # sum of rewards for all agents
-    agent_rewards = [[], [], [], []]  # individual agent reward
 
     for i_episode in range(1, num_episode+1):
         ts1 = time.time()
         obs_n = env.reset()
         episode_rewards.append(0.)
-        rewards = np.zeros(len(trainers))
-        for agent_reward in agent_rewards:
-            agent_reward.append(0.)
+        adversary_rewards.append(0.)
+        good_agent_rewards.append(0.)
+        agent_rewards = np.zeros(len(trainers))
 
         for i, trainer in enumerate(trainers):
             trainer.reset(obs_n[i])
@@ -269,17 +281,37 @@ def SarsaLambda(
             if i_episode % 10 == 0:
                 env.render()
 
-            rewards += reward_n
-            for i, r in enumerate(reward_n):
-                episode_rewards[-1] += r
-                agent_rewards[i][-1] += r
+            for i, agent in enumerate(env.agents):
+                episode_rewards[-1] += reward_n[i]
+                if agent.adversary:
+                    adversary_rewards[-1] += reward_n[i]
+                else:
+                    good_agent_rewards[-1] += reward_n[i]
 
-            # # display rewards
-            # for agent in env.world.agents:
-            #     print(agent.name + " reward: %0.3f" % env._get_reward(agent))
+            agent_rewards += reward_n
 
-        print('\rEpisode {}\tAverage Score: {:.2f}\tScore: {}\tTime:{}\n'
-              .format(i_episode, np.mean(episode_rewards), rewards, time.time() - ts1), end="")
+        print('\rEpisode {}'
+              '\tAverage Reward: {:.2f}'
+              '\tAgents Reward: {}'
+              '\tEpisode Reward: {:.2f}'
+              '\tEpisode Adversary Reward: {:.2f}'
+              '\tTime:{}\n'
+              .format(i_episode,
+                      np.mean(episode_rewards),
+                      agent_rewards,
+                      episode_rewards[-1],
+                      adversary_rewards[-1],
+                      time.time() - ts1), end="")
 
-        for trainer in trainers:
-            np.save(dir_path + "/" + trainer.agent_name + "_weight", trainer.w)
+
+        vals =[i_episode, np.mean(episode_rewards), agent_rewards, episode_rewards[-1], adversary_rewards[-1]]
+        rows.append(dict(zip(fieldnames, vals)))
+
+    with open('out/benchmark.csv', mode='w') as csv_file:
+        writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
+        writer.writeheader()
+        for row in rows:
+            writer.writerow(row)
+
+    for trainer in trainers:
+        np.save(dir_path + "/" + trainer.agent_name + "_weight", trainer.w)
