@@ -13,6 +13,7 @@ import torch.optim as optim
 from multiagent.environment import MultiAgentEnv
 from multiagent.policy import Policy
 import numpy as np
+import time
 
 
 BUFFER_SIZE = int(1e6)  # replay buffer size
@@ -215,6 +216,7 @@ def DDPG(
 
 
     for i_episode in range(1, num_episode+1):
+        ts = time.time()
         state = env.reset()
         for trainer in trainers:
             trainer.reset(state)
@@ -239,7 +241,8 @@ def DDPG(
                 break 
         scores_deque.append(score)
         scores.append(score)
-        print('\rEpisode {}\tAverage Score: {:.2f}\tScore: {}'.format(i_episode, np.mean(scores_deque), score), end="")
+        print('\rEpisode {}\tAverage Score: {:.2f}\tScore: {}\t Time: {}'
+              .format(i_episode, np.mean(scores_deque), score, time.time() - ts), end="")
         if i_episode % 10 == 0:
             env.render()
             #torch.save(agent.actor_local.state_dict(), 'checkpoint_actor.pth')

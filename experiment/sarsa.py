@@ -5,7 +5,8 @@
 from multiagent.environment import MultiAgentEnv
 from multiagent.policy import Policy
 import numpy as np
-
+import time
+import os
 
 class AgentTrainer(object):
     def __init__(self, agent_name, observation_shape, action_space):
@@ -55,7 +56,7 @@ class TileCoding:
         self.num_state_dimension = len(state_low)
         self.num_actions = num_actions
         self.tilings = []
-        self.num_tiles = [int(np.ceil((state_high[i] - state_low[i]) / tile_width[i])) + 1
+        self.num_tiles = [int(np.ceil((state_high[i] - state_low[i]) / tile_width[i]))
                           for i in range(self.num_state_dimension)]
 
         self.tiling_size = np.prod(self.num_tiles) * self.num_actions  # tiling_size = number of tiles per tiling
@@ -64,12 +65,12 @@ class TileCoding:
             tiling = []
             for d_i in range(self.num_state_dimension):
                 offset = i * tile_width[d_i] / num_tilings
-                tiling.append(
-                    tuple([state_low[d_i] - offset + tile_width[d_i] * k for k in range(self.num_tiles[d_i] + 1)]))
+                buckets = [state_low[d_i] - offset + tile_width[d_i] * k for k in range(self.num_tiles[d_i] + 1)]
+                tiling.append(tuple(buckets[1:-1]))
             self.tilings.append(tuple(tiling))
 
         self.tilings = tuple(self.tilings)
-        self.feature_len = self.num_tilings * self.num_actions * np.prod(self.num_tiles)
+        self.feature_len = self.num_tilings * self.tiling_size
 
         self.offsets = []
         # calculate offsets for each dimension used for decoding tile later
@@ -102,6 +103,7 @@ class FixedRandomPolicyAgentTrainer(AgentTrainer):
         self.agent_name = agent_name
         self.action_space = action_space
         self.policy = InboundRandomPolicy(action_space)
+        self.w = np.zeros(0)
 
     def action(self, obs):
         return self.policy.action(obs)
@@ -112,6 +114,8 @@ class FixedRandomPolicyAgentTrainer(AgentTrainer):
     def reset(self, obs):
         pass
 
+    def set_weight(self, w):
+        self.w = w
 
 class SarsaLambdaAgentTrainer(AgentTrainer):
     def __init__(self, agent_name, observation_shape, action_space, gamma, lam, alpha):
@@ -135,9 +139,17 @@ class SarsaLambdaAgentTrainer(AgentTrainer):
         # agent.state.p_pos     -> 2
         # distance to two entities -> 2
         # distance to three other agents -> 3
-        state_low = np.array([-1.3, -1.3, -1, -1, -1, -1, -1, -1, -1])
-        state_high = np.array([1.3, 1.3, 1, 1, 1, 1, 1, 1, 1])
-        tile_width = np.array([0.65, 0.65, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5])
+        # state_low = np.array([-1.3, -1.3, -1, -1, -1, -1, -1, -1, -1])
+        # state_high = np.array([1.3, 1.3, 1, 1, 1, 1, 1, 1, 1])
+        # tile_width = np.array([0.65, 0.65, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5])
+        # num_tiling = 1
+
+        """reduce to 5 dimensions"""
+        # distance to two entities -> 2
+        # distance to three other agents -> 3
+        state_low = np.array([-1, -1, -1, -1, -1, -1, -1])
+        state_high = np.array([1, 1, 1, 1, 1, 1, 1])
+        tile_width = np.array([0.25, 0.25, 0.4, 0.4, 0.4, 0.4, 0.4])
         num_tiling = 1
 
         self.X = TileCoding(state_low, state_high, action_space.n, num_tiling, tile_width)
@@ -148,7 +160,7 @@ class SarsaLambdaAgentTrainer(AgentTrainer):
         self.Q_old = None
 
     def reduce_obs_dimensons(self, obs):
-        agent_vel = obs[0:2]
+        agent_vel = [] # obs[0:2]
         agent_pos = obs[2:4]
         entity_one_pos = obs[4:6]
         entity_two_pos = obs[6:8]
@@ -167,13 +179,13 @@ class SarsaLambdaAgentTrainer(AgentTrainer):
         return reduced_ops
 
     def epsilon_greedy_policy(self, obs, done, epsilon=.0):
-        Q = [np.dot(self.w, self.X(obs, done, a)) for a in range(self.action_space_dim)]
+        Q = np.array([np.dot(self.w, self.X(obs, done, a)) for a in range(self.action_space_dim)])
         u = np.zeros(self.action_space.n)
 
         if np.random.rand() < epsilon:
             u[np.random.randint(0, self.action_space.n)] = 1
         else:
-            u[np.argmax(Q)] = 1
+            u[np.random.choice(np.flatnonzero(Q == Q.max()))] = 1
         return u
 
     def action(self, obs):
@@ -181,14 +193,12 @@ class SarsaLambdaAgentTrainer(AgentTrainer):
 
     def update(self, obs, action, reward, next_obs, done):
         obs = self.reduce_obs_dimensons(obs)
-
         a_next = self.epsilon_greedy_policy(obs, done)
         x_next = self.X(obs, done, a_next)
-
         Q = np.dot(self.w, self.x)
         Q_next = np.dot(self.w, x_next)
         delta = reward + self.gamma * Q_next - Q
-        z = self.gamma * self.lam * self.z + (1 - self.alpha * self.gamma * self.lam * np.dot(self.z, self.x)) * self.x
+        self.z = self.gamma * self.lam * self.z + (1 - self.alpha * self.gamma * self.lam * np.dot(self.z, self.x)) * self.x
         self.w = self.w + self.alpha * (delta + Q - self.Q_old) * self.z - self.alpha * (Q - self.Q_old) * self.x
         self.Q_old = Q_next
         self.x = x_next
@@ -202,6 +212,8 @@ class SarsaLambdaAgentTrainer(AgentTrainer):
         self.z = np.zeros((self.X.feature_vector_len()))
         self.Q_old = 0.
 
+    def set_weight(self, w):
+        self.w = w
 
 def SarsaLambda(
         env: MultiAgentEnv,
@@ -209,20 +221,27 @@ def SarsaLambda(
         lam: float,  # decay rate
         alpha: float,  # step size,
         num_episode: int,
-        max_episode_len=100
+        max_episode_len=100,
+        use_trained_weight=False
 ):
+    dir_path = os.path.dirname(os.path.realpath(__file__)) + "/out"
     trainers = []
     for i, agent in enumerate(env.agents):
         if agent.adversary:
-            trainers.append(SarsaLambdaAgentTrainer("agent_%d" % i, env.observation_space[i], env.action_space[i],
-                                                    gamma, lam, alpha))
+            trainer = SarsaLambdaAgentTrainer("agent_%d" % i, env.observation_space[i], env.action_space[i],
+                                                    gamma, lam, alpha)
+            if use_trained_weight:
+                w = np.load(dir_path + "/agent_%d" % i + "_weight.npy")
+                trainer.set_weight(w)
         else:
-            trainers.append(FixedRandomPolicyAgentTrainer("agent_%d" % i, env.observation_space[i], env.action_space[i]))
+            trainer = FixedRandomPolicyAgentTrainer("agent_%d" % i, env.observation_space[i], env.action_space[i])
 
+        trainers.append(trainer)
     episode_rewards = []  # sum of rewards for all agents
     agent_rewards = [[], [], [], []]  # individual agent reward
 
     for i_episode in range(1, num_episode+1):
+        ts1 = time.time()
         obs_n = env.reset()
         episode_rewards.append(0.)
         rewards = np.zeros(len(trainers))
@@ -247,7 +266,7 @@ def SarsaLambda(
 
             # render
             # env.render()
-            if len(episode_rewards) % 5 == 0:
+            if i_episode % 10 == 0:
                 env.render()
 
             rewards += reward_n
@@ -259,5 +278,8 @@ def SarsaLambda(
             # for agent in env.world.agents:
             #     print(agent.name + " reward: %0.3f" % env._get_reward(agent))
 
-        print('\rEpisode {}\tAverage Score: {:.2f}\tScore: {}'.format(i_episode, np.mean(episode_rewards), rewards), end="")
+        print('\rEpisode {}\tAverage Score: {:.2f}\tScore: {}\tTime:{}\n'
+              .format(i_episode, np.mean(episode_rewards), rewards, time.time() - ts1), end="")
 
+        for trainer in trainers:
+            np.save(dir_path + "/" + trainer.agent_name + "_weight", trainer.w)
