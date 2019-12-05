@@ -15,9 +15,8 @@ if __name__ == '__main__':
     # hyper parameters
     num_episodes = 100
     gamma = 1.
-    lam = 0.5
+    lam = 0.8
     alpha = 0.01
-    adam_lr = 0.01  # learning rate for Adam optimizer
 
     # load the simple_tag scenario
     scenario = scenarios.load("simple_tag.py").Scenario()
@@ -26,5 +25,5 @@ if __name__ == '__main__':
     # env = MultiAgentEnv(world, scenario.reset_world, scenario.reward, scenario.observation, info_callback=None, shared_viewer=False)
     env = MultiAgentEnv(world, scenario.reset_world, scenario.reward, scenario.observation, info_callback=None)
 
-    #SarsaLambda(env, gamma, lam, alpha, num_episodes)
-    DDPG(env, num_episodes)
+    # SarsaLambda(env, gamma, lam, alpha, num_episodes, 50)
+    DDPG(env, num_episodes, 25)

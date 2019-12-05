@@ -79,7 +79,7 @@ class DdpgAgent():
             action += self.noise.sample()
         return np.clip(action, -1, 1)
 
-    def reset(self):
+    def reset(self, obs):
         self.noise.reset()
 
     def learn(self, experiences, gamma):
@@ -217,7 +217,7 @@ def DDPG(
     for i_episode in range(1, num_episode+1):
         state = env.reset()
         for trainer in trainers:
-            trainer.reset()
+            trainer.reset(state)
         score = np.zeros(len(trainers))
         for t in range(max_episode_len):
             actions = []
