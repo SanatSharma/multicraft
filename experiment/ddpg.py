@@ -278,7 +278,7 @@ def DDPG(
             #torch.save(agent.critic_local.state_dict(), 'checkpoint_critic.pth')
             print('\rEpisode {}\tAverage Score: {:.2f}'.format(i_episode, np.mean(scores_deque)))
 
-        vals = [i_episode, np.mean(episode_rewards), agent_rewards, episode_rewards[-1], adversary_rewards[-1]]
+        vals = [i_episode, np.mean(episode_rewards), agent_rewards, episode_rewards[-1], adversary_rewards[-1], good_agent_rewards[-1]]
         rows.append(dict(zip(fieldnames, vals)))
 
     with open('ddpg_out/benchmark.csv', mode='w') as csv_file:

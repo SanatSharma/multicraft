@@ -13,7 +13,7 @@ import os,sys
 
 if __name__ == '__main__':
     # hyper parameters
-    num_episodes = 100
+    num_episodes = 2000
     gamma = 1.
     lam = 0.8
     alpha = 0.01
@@ -25,5 +25,5 @@ if __name__ == '__main__':
     # env = MultiAgentEnv(world, scenario.reset_world, scenario.reward, scenario.observation, info_callback=None, shared_viewer=False)
     env = MultiAgentEnv(world, scenario.reset_world, scenario.reward, scenario.observation, info_callback=None)
 
-    SarsaLambda(env, gamma, lam, alpha, 10, 25, False)
-    DDPG(env, 10, 25)
+    # SarsaLambda(env, gamma, lam, alpha, num_episodes, 25, True)
+    DDPG(env, num_episodes, 25)

@@ -145,9 +145,6 @@ class SarsaLambdaAgentTrainer(AgentTrainer):
         # tile_width = np.array([0.65, 0.65, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5])
         # num_tiling = 1
 
-        """reduce to 5 dimensions"""
-        # distance to two entities -> 2
-        # distance to three other agents -> 3
         state_low = np.array([-1, -1, -1, -1, -1, -1, -1])
         state_high = np.array([1, 1, 1, 1, 1, 1, 1])
         tile_width = np.array([0.25, 0.25, 0.4, 0.4, 0.4, 0.4, 0.4])
@@ -303,7 +300,7 @@ def SarsaLambda(
                       adversary_rewards[-1],
                       time.time() - ts1), end="")
 
-        vals = [i_episode, np.mean(episode_rewards), agent_rewards, episode_rewards[-1], adversary_rewards[-1]]
+        vals = [i_episode, np.mean(episode_rewards), agent_rewards, episode_rewards[-1], adversary_rewards[-1], good_agent_rewards[-1]]
         rows.append(dict(zip(fieldnames, vals)))
 
     with open('sarsa_out/benchmark.csv', mode='w') as csv_file:
