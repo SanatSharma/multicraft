@@ -1,0 +1,12 @@
+tile coding: 7 dimensions
+	agent_position: 2
+	distance to 2 entities: 2
+	distance to other 3 agents: 3
+
+gamma = 1.
+lam = 0.8
+alpha = 0.01
+episode length = 25
+num_tiling = 1
+
+time per episode ~ 2 seconds
