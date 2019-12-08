@@ -203,6 +203,7 @@ def DDPG(
     num_episode: int,
     max_episode_len=100
 ):
+    print('=== Start DDPG ====')
     fieldnames = ['Episode',
                   'Average Reward',
                   'Agents Reward',
@@ -223,7 +224,6 @@ def DDPG(
     trainers = []
 
     for i, agent in enumerate(env.agents):
-        print(i)
         if agent.adversary:
             trainers.append(DdpgAgent("agent_%d" % i, env.observation_space[i].shape[0], env.action_space[i].n))
         else:
@@ -248,10 +248,8 @@ def DDPG(
 
             next_state, reward, done, _ = env.step(actions)
 
-            #print(reward)
-            if i_episode % 5 == 0:
+            if i_episode % 10 == 0:
                 env.render()
-            
             for idx, trainer in enumerate(trainers):
                 trainer.update(state[idx], actions[idx], reward[idx], next_state[idx], done[idx])
             state = next_state
@@ -270,13 +268,13 @@ def DDPG(
                 break 
         scores_deque.append(score)
         scores.append(score)
-        print('\rEpisode {}\tAverage Score: {:.2f}\tScore: {}\t Time: {}'
+        print('\rEpisode {}\tAverage Score: {:.2f}\tScore: {}\t Time: {}\n'
               .format(i_episode, np.mean(scores_deque), score, time.time() - ts), end="")
-        if i_episode % 10 == 0:
-            env.render()
-            #torch.save(agent.actor_local.state_dict(), 'checkpoint_actor.pth')
-            #torch.save(agent.critic_local.state_dict(), 'checkpoint_critic.pth')
-            print('\rEpisode {}\tAverage Score: {:.2f}'.format(i_episode, np.mean(scores_deque)))
+        # if i_episode % 10 == 0:
+        #     env.render()
+        #     #torch.save(agent.actor_local.state_dict(), 'checkpoint_actor.pth')
+        #     #torch.save(agent.critic_local.state_dict(), 'checkpoint_critic.pth')
+        #     print('\rEpisode {}\tAverage Score: {:.2f}'.format(i_episode, np.mean(scores_deque)))
 
         vals = [i_episode, np.mean(episode_rewards), agent_rewards, episode_rewards[-1], adversary_rewards[-1], good_agent_rewards[-1]]
         rows.append(dict(zip(fieldnames, vals)))
