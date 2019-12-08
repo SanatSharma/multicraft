@@ -222,6 +222,7 @@ def SarsaLambda(
         max_episode_len=100,
         use_trained_weight=False
 ):
+    print('=== Start SARSA(lambda) ====')
     fieldnames = ['Episode',
                   'Average Reward',
                   'Agents Reward',
@@ -273,8 +274,6 @@ def SarsaLambda(
             for i, trainer in enumerate(trainers):
                 trainer.update(obs_n[i], act_n[i], reward_n[i], None, done_n[i])
 
-            # render
-            # env.render()
             if i_episode % 10 == 0:
                 env.render()
 
